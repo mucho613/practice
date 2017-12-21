@@ -7,15 +7,18 @@
 #define SCREEN_X 640
 #define SCREEN_Y 480
 
+#define CONSOLE_X 120
+#define CONSOLE_Y 90
+
 #define CONVERT_0BGR_TO_0RGB(crColor) (0b00000000 |	(crColor & 0x0800) >> 9 | (crColor & 0x0080) >> 6 | (crColor & 0x0008) >> 3)
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 
-HANDLE buffer;
-CHAR_INFO *bitmap;
-COORD pos = {0, 0}, size = {SCREEN_X, SCREEN_Y};
-SMALL_RECT region = {0, 0, SCREEN_X, SCREEN_Y};
+HANDLE consoleBuffer;
+CHAR_INFO *charBuffer;
+COORD pos = {0, 0}, size = {CONSOLE_X, CONSOLE_Y};
+SMALL_RECT region = {0, 0, CONSOLE_X, CONSOLE_Y};
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -38,9 +41,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 
 	// Prepare console
 	AllocConsole();
-	buffer = CreateConsoleScreenBuffer(GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
-	SetConsoleActiveScreenBuffer(buffer);
-	bitmap = (CHAR_INFO *)malloc(sizeof(CHAR_INFO) * SCREEN_X * SCREEN_Y);
+	consoleBuffer = CreateConsoleScreenBuffer(GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
+	SetConsoleActiveScreenBuffer(consoleBuffer);
+	charBuffer = (CHAR_INFO *)malloc(sizeof(CHAR_INFO) * CONSOLE_X * CONSOLE_Y);
 
 	if(!RegisterClass(&wndclass)) {
 		MessageBox(NULL, TEXT("Program requires Windows NT."), szAppName, MB_ICONERROR);
@@ -84,8 +87,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		biBMP.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 		biBMP.bmiHeader.biBitCount = 32;
 		biBMP.bmiHeader.biPlanes = 1;
-		biBMP.bmiHeader.biWidth = SCREEN_X;
-		biBMP.bmiHeader.biHeight = -SCREEN_Y;
+		biBMP.bmiHeader.biWidth = CONSOLE_X;
+		biBMP.bmiHeader.biHeight = -CONSOLE_Y;
 		hbmpBMP = CreateDIBSection(NULL, &biBMP, DIB_RGB_COLORS, (void **)(&lpdwPixel), NULL, 0);
 		hdc = GetDC(hwnd);
 		hdcBMP = CreateCompatibleDC(hdc);
@@ -100,30 +103,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &ps);
 
-		for(i=0; i<SCREEN_X * SCREEN_Y; i++) {
+		for(i=0; i<CONSOLE_X * CONSOLE_Y; i++) {
 			lpdwPixel[i] = 0x00FFFFFF;
 		}
 
-		MoveToEx(hdcBMP, 0, cyClient / 2, NULL);
-		LineTo(hdcBMP, cxClient, cyClient / 2);
+		MoveToEx(hdc, 0, cyClient / 2, NULL);
+		LineTo(hdc, cxClient, cyClient / 2);
 
 		for(i=0; i<NUM; i++) {
 			apt[i].x = i * cxClient / NUM;
 			apt[i].y = (int)(cyClient / 2 * (1 - sin(TWOPI * i / NUM)));
 		}
-		Polyline(hdcBMP, apt, NUM);
+		Polyline(hdc, apt, NUM);
 
-		BitBlt(hdc, 0, 0, SCREEN_X, SCREEN_Y, hdcBMP, 0, 0, SRCCOPY);
+		StretchBlt(hdcBMP, 0, 0, CONSOLE_X, CONSOLE_Y, hdc, 0, 0, cxClient, cyClient, SRCCOPY);
 
 		// Draw to console buffer
 		COLORREF crColor;
-		for(int i=0; i<SCREEN_X * SCREEN_Y; i++) {
+		for(int i=0; i<CONSOLE_X * CONSOLE_Y; i++) {
 			crColor = lpdwPixel[i];
-			bitmap[i].Char.AsciiChar = (char)' ';
-		 	bitmap[i].Attributes = CONVERT_0BGR_TO_0RGB(crColor) << 4;
+			charBuffer[i].Char.AsciiChar = (char)' ';
+		 	charBuffer[i].Attributes = CONVERT_0BGR_TO_0RGB(crColor) << 4;
 		}
-		WriteConsoleOutput(buffer, bitmap, size, pos, &region);
-
+		WriteConsoleOutput(consoleBuffer, charBuffer, size, pos, &region);
 		EndPaint(hwnd, &ps);
 
 		return 0;
