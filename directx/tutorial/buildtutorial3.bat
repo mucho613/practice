@@ -1,1 +1,1 @@
-cl /I "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include" "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\d3dx9.lib" directx9tutorial3.cpp
+cl /I "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include" "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\d3dx9.lib" dx9tutorial3.cpp
